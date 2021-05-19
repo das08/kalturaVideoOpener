@@ -27,7 +27,6 @@ function fetchVideoMetaData(video) {
         request.addEventListener("load", (e) => {
             const res = request.response;
             if (!res) {
-                console.log("404 kadai data not found");
                 reject([new VideoInfo(null, null, null)]);
             }
             else {
@@ -39,7 +38,6 @@ function fetchVideoMetaData(video) {
                         minBitRate = video.bitrate;
                     }
                 }
-
                 if (minBitRate !== -1){
                     const url = `https://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
                     resolve(new VideoInfo(res[1].name, res[1].duration, url));

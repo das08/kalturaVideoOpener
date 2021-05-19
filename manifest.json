@@ -28,7 +28,8 @@
       ],
       "matches": [
         "http://*/*", "https://*/*"
-      ]
+      ],
+      "exclude_matches": ["http://cfvod.kaltura.com/*"]
     }
   ],
   "permissions": [

@@ -6,6 +6,7 @@ chrome.contextMenus.onClicked.addListener(item => {
         chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
             chrome.tabs.sendMessage(tabs[0].id, { url: regex[1] }, function (response) {
                 console.log(response);
+                return true;
             });
         });
         console.log(regex[1])
@@ -16,11 +17,11 @@ chrome.contextMenus.onClicked.addListener(item => {
 chrome.runtime.onMessage.addListener(
     (request, sender, sendResponse) => {
         const videoInfoList = request.message;
-
         chrome.contextMenus.removeAll();
         const parent = chrome.contextMenus.create({
             id: 'parent',
-            title: 'Download Kaltura Video'
+            title: 'Download Kaltura Video',
+            enabled: (videoInfoList.length > 0)
         });
 
         for (let video of videoInfoList){
@@ -35,6 +36,8 @@ chrome.runtime.onMessage.addListener(
                 title: 'Download'
             });
         }
+
+        sendResponse({});
         return true;
-    });
+});
 
