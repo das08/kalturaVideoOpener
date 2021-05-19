@@ -4,7 +4,6 @@ class Video {
         this.partnerID2 = partnerID2;
         this.entryID = entryID;
     }
-
     async getVideoInfo(){
         return await fetchVideoMetaData(this);
     }
@@ -32,11 +31,8 @@ function fetchVideoMetaData(video) {
                 reject([new VideoInfo(null, null, null)]);
             }
             else {
-                const videoName = res[1].name;
-                const duration = res[1].duration;
-
                 let minBitRate = -1;
-                let flavorID = "";
+                let flavorID = null;
                 for (let video of res[2]){
                     if (video.bitrate > minBitRate){
                         flavorID = video.id;
@@ -46,7 +42,7 @@ function fetchVideoMetaData(video) {
 
                 if (minBitRate !== -1){
                     const url = `http://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
-                    resolve(new VideoInfo(videoName, duration, url));
+                    resolve(new VideoInfo(res[1].name, res[1].duration, url));
                 } else {
                     reject(new VideoInfo(null, null, null));
                 }
@@ -56,13 +52,6 @@ function fetchVideoMetaData(video) {
         request.send();
     });
 }
-
-
-
-let forEach = Array.prototype.forEach;
-let speed = 1.0;
-
-
 
 async function main(document) {
     window.onload = () => {
@@ -79,19 +68,12 @@ async function main(document) {
             };
         }
     }
-    // await fetchVideoMetaData();
 }
 
 
-const wait = (millisec) => {
-    return new Promise((resolve, reject) => {
-        setTimeout(resolve, millisec);
-    });
-};
-
 async function initialize(document) {
     let frameTags = document.getElementsByTagName("iframe");
-    forEach.call(frameTags, function (frame) {
+    Array.prototype.forEach.call(frameTags, function (frame) {
         try {
             var childDocument = frame.contentDocument;
         } catch (e) {
@@ -100,15 +82,11 @@ async function initialize(document) {
         main(childDocument);
     });
     let img = document.querySelectorAll('img');
-    console.log("img", img)
-
     let videoIDList = [];
-
-
     for (let i of img) {
         const regex = i.src.match("https?://cfvod.kaltura.com/p/([^/]+)/sp/([^/]+)/thumbnail/entry_id/([^/]+)");
         if(regex && regex.length === 4){
-            console.log("id ", regex[1], " id2 ", regex[2],  " entryid ", regex[3]);
+            // console.log("id ", regex[1], " id2 ", regex[2],  " entryid ", regex[3]);
             videoIDList.push(new Video(regex[1], regex[2], regex[3]));
         }
     }
@@ -117,9 +95,6 @@ async function initialize(document) {
         let res = await v.getVideoInfo();
         console.log("url", res)
     }
-
-
-
 }
 
 main();
