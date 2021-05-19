@@ -16,6 +16,10 @@
     },
     "default_title": "Kaltura Downloader"
   },
+  "background": {
+    "scripts": ["menu.js"],
+    "persistent": false
+  },
   "content_scripts": [
     {
       "all_frames": true,
@@ -26,6 +30,10 @@
         "http://*/*", "https://*/*"
       ]
     }
+  ],
+  "permissions": [
+    "activeTab",
+    "contextMenus"
   ],
   "web_accessible_resources": [
   ]

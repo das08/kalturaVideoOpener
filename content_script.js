@@ -41,7 +41,7 @@ function fetchVideoMetaData(video) {
                 }
 
                 if (minBitRate !== -1){
-                    const url = `http://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
+                    const url = `https://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
                     resolve(new VideoInfo(res[1].name, res[1].duration, url));
                 } else {
                     reject(new VideoInfo(null, null, null));
@@ -91,10 +91,37 @@ async function initialize(document) {
         }
     }
 
+    let videoInfoList = [];
     for (let v of videoIDList){
         let res = await v.getVideoInfo();
         console.log("url", res)
+        videoInfoList.push(res)
     }
+    chrome.runtime.sendMessage({message: videoInfoList}, () => {
+        return true
+    });
 }
 
 main();
+
+chrome.runtime.onMessage.addListener(
+    (request, sender, sendResponse) => {
+        if (!inIframe()){
+            console.log("req", request.url)
+                // a タグ生成
+                var alink = document.createElement('a');
+                alink.download = "filename";
+                alink.href = request.url;
+                alink.target = "_blank";
+                alink.click();
+        }
+        return true;
+    });
+
+function inIframe () {
+    try {
+        return window.self !== window.top;
+    } catch (e) {
+        return true;
+    }
+}
