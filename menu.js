@@ -4,19 +4,19 @@ chrome.contextMenus.onClicked.addListener(item => {
     const regex = item.menuItemId.match("^@URL(.*)");
     if(regex && regex.length === 2){
         chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, { url: regex[1] }, function (response) {
-                console.log(response);
-                return true;
-            });
+            chrome.tabs.sendMessage(tabs[0].id, {message:"url" ,url: regex[1] });
         });
         console.log(regex[1])
     }
     return true;
 });
 
+
+
 chrome.runtime.onMessage.addListener(
     (request, sender, sendResponse) => {
         const videoInfoList = request.message;
+
         chrome.contextMenus.removeAll();
         const parent = chrome.contextMenus.create({
             id: 'parent',
@@ -41,3 +41,8 @@ chrome.runtime.onMessage.addListener(
         return true;
 });
 
+chrome.tabs.onActivated.addListener(function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {message: "reload"});
+    });
+});

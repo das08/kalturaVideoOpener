@@ -18,6 +18,7 @@ class VideoInfo {
 }
 
 function fetchVideoMetaData(video) {
+    if (!video.partnerID || !video.partnerID2 || !video.entryID) return new Promise((resolve, _)=>{resolve(new VideoInfo())})
     const queryURL = `https://cdnapi.kaltura.com/api_v3/index.php?apiVersion=3.1.5&format=1&service=multirequest&1%3Aexpiry=86400&1%3Aservice=session&1%3Aaction=startWidgetSession&1%3AwidgetId=_${video.partnerID}&2%3Aaction=get&2%3AentryId=${video.entryID}&2%3Aservice=baseentry&2%3Aks=%7B1%3Aresult%3Aks%7D&2%3AresponseProfile%3Afields=createdAt%2CdataUrl%2Cduration%2Cname%2Cplays%2CthumbnailUrl%2CuserId&2%3AresponseProfile%3Atype=1&3%3Aaction=getbyentryid&3%3AentryId=${video.entryID}&3%3Aservice=flavorAsset&3%3Aks=%7B1%3Aresult%3Aks%7D`
     const request = new XMLHttpRequest();
     request.open("GET", queryURL);
@@ -27,7 +28,7 @@ function fetchVideoMetaData(video) {
         request.addEventListener("load", (e) => {
             const res = request.response;
             if (!res) {
-                reject([new VideoInfo(null, null, null)]);
+                resolve([new VideoInfo(null, null, null)]);
             }
             else {
                 let minBitRate = -1;
@@ -42,7 +43,7 @@ function fetchVideoMetaData(video) {
                     const url = `https://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
                     resolve(new VideoInfo(res[1].name, res[1].duration, url));
                 } else {
-                    reject(new VideoInfo(null, null, null));
+                    resolve(new VideoInfo(null, null, null));
                 }
 
             }
@@ -54,6 +55,9 @@ function fetchVideoMetaData(video) {
 async function main(document) {
     window.onload = () => {
         initialize(window.document);
+        chrome.runtime.sendMessage({message: []}, () => {
+            return true
+        });
     };
     if (document) {
         if (document.readyState === "complete") {
@@ -69,6 +73,21 @@ async function main(document) {
 }
 
 
+function getIDFromImgTag(i){
+    const regex = "https?://cfvod.kaltura.com/p/([^/]+)/sp/([^/]+)/thumbnail/entry_id/([^/]+)";
+    const r = i.src.match(regex);
+    // console.log("id ", r[1], " id2 ", r[2],  " entryid ", r[3]);
+    return (r && r.length === 4) ? new Video(r[1], r[2], r[3]) : null
+}
+
+function getIDFromVideoTag(i){
+    if (i && i.hasAttribute("kpartnerid") && i.hasAttribute("kentryid")){
+        console.log("i", i.getAttribute("kentryid"), i.id)
+        console.log("video", new Video(i.getAttribute("kpartnerid"), i.getAttribute("kpartnerid")+"00", i.getAttribute("kentryid")))
+        return new Video(i.getAttribute("kpartnerid"), i.getAttribute("kpartnerid")+"00", i.getAttribute("kentryid"));
+    } else return null
+}
+
 async function initialize(document) {
     let frameTags = document.getElementsByTagName("iframe");
     Array.prototype.forEach.call(frameTags, function (frame) {
@@ -79,39 +98,54 @@ async function initialize(document) {
         }
         main(childDocument);
     });
-    let img = document.querySelectorAll('img');
+    let imgTags = document.querySelectorAll('img');
+    let videoTag = document.querySelector('video');
+
     let videoIDList = [];
-    for (let i of img) {
-        const regex = i.src.match("https?://cfvod.kaltura.com/p/([^/]+)/sp/([^/]+)/thumbnail/entry_id/([^/]+)");
-        if(regex && regex.length === 4){
-            // console.log("id ", regex[1], " id2 ", regex[2],  " entryid ", regex[3]);
-            videoIDList.push(new Video(regex[1], regex[2], regex[3]));
-        }
+    for (let i of imgTags) {
+        const match = getIDFromImgTag(i);
+        if (match) videoIDList.push(match);
+    }
+    const res = getIDFromVideoTag(videoTag);
+    if(res){ videoIDList.push(res); }
+
+
+    let pendingList = [];
+    for (let v of videoIDList){
+        pendingList.push(v.getVideoInfo())
     }
 
     let videoInfoList = [];
-    for (let v of videoIDList){
-        let res = await v.getVideoInfo();
-        console.log("url", res)
-        videoInfoList.push(res)
+    const result = await (Promise).allSettled(pendingList);
+    for (const k of result) {
+        if (k.status === "fulfilled") videoInfoList.push(k.value);
     }
+
+    console.log(videoInfoList)
     chrome.runtime.sendMessage({message: videoInfoList}, () => {
         return true
     });
+
 }
 
 main();
 
 chrome.runtime.onMessage.addListener(
     (request, sender, sendResponse) => {
-        if (!inIframe()){
-            console.log("req", request.url)
-                // a タグ生成
+        if (request.message === "reload"){
+            initialize(window.document);
+            chrome.runtime.sendMessage({message: []}, () => {
+                return true
+            });
+        } else {
+            if (!inIframe()){
+                console.log("req", request.url)
                 var alink = document.createElement('a');
                 alink.download = "filename";
                 alink.href = request.url;
                 alink.target = "_blank";
                 alink.click();
+            }
         }
         return true;
     });
