@@ -1,6 +1,6 @@
 {
-  "name": "Kaltura Downloader",
-  "description": "Simple tool for downloading Kaltura videos.",
+  "name": "Kaltura Video Opener",
+  "description": "Simple tool for opening Kaltura videos in blank tabs.",
   "version": "1.0.0",
   "manifest_version": 2,
   "icons": {
@@ -14,7 +14,7 @@
       "24": "img/icon24.png",
       "32": "img/icon32.png"
     },
-    "default_title": "Kaltura Downloader"
+    "default_title": "Kaltura Video Opener"
   },
   "background": {
     "scripts": ["menu.js"],
@@ -28,8 +28,7 @@
       ],
       "matches": [
         "http://*/*", "https://*/*"
-      ],
-      "exclude_matches": ["http://cfvod.kaltura.com/*"]
+      ]
     }
   ],
   "permissions": [

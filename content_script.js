@@ -17,7 +17,27 @@ class VideoInfo {
     }
 }
 
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.message === "reload"){
+        initialize(window.document);
+        chrome.runtime.sendMessage({message: []}, () => {
+            return true
+        });
+    } else {
+        if (!inIframe()){
+            console.log("req", request.url)
+            let alink = document.createElement('a');
+            alink.href = request.url;
+            alink.target = "_blank";
+            alink.click();
+        }
+    }
+    sendResponse({});
+    return true;
+});
+
 function fetchVideoMetaData(video) {
+    // Make request only if video has required ids.
     if (!video.partnerID || !video.partnerID2 || !video.entryID) return new Promise((resolve, _)=>{resolve(new VideoInfo())})
     const queryURL = `https://cdnapi.kaltura.com/api_v3/index.php?apiVersion=3.1.5&format=1&service=multirequest&1%3Aexpiry=86400&1%3Aservice=session&1%3Aaction=startWidgetSession&1%3AwidgetId=_${video.partnerID}&2%3Aaction=get&2%3AentryId=${video.entryID}&2%3Aservice=baseentry&2%3Aks=%7B1%3Aresult%3Aks%7D&2%3AresponseProfile%3Afields=createdAt%2CdataUrl%2Cduration%2Cname%2Cplays%2CthumbnailUrl%2CuserId&2%3AresponseProfile%3Atype=1&3%3Aaction=getbyentryid&3%3AentryId=${video.entryID}&3%3Aservice=flavorAsset&3%3Aks=%7B1%3Aresult%3Aks%7D`
     const request = new XMLHttpRequest();
@@ -52,31 +72,18 @@ function fetchVideoMetaData(video) {
     });
 }
 
-async function main(document) {
-    window.onload = () => {
-        initialize(window.document);
-        chrome.runtime.sendMessage({message: []}, () => {
-            return true
-        });
-    };
-    if (document) {
-        if (document.readyState === "complete") {
-            initialize(document);
-        } else {
-            document.onreadystatechange = () => {
-                if (document.readyState === "complete") {
-                    initialize(document);
-                }
-            };
-        }
+function inIframe () {
+    // Check if window is iframe or not.
+    try {
+        return window.self !== window.top;
+    } catch (e) {
+        return true;
     }
 }
-
 
 function getIDFromImgTag(i){
     const regex = "https?://cfvod.kaltura.com/p/([^/]+)/sp/([^/]+)/thumbnail/entry_id/([^/]+)";
     const r = i.src.match(regex);
-    // console.log("id ", r[1], " id2 ", r[2],  " entryid ", r[3]);
     return (r && r.length === 4) ? new Video(r[1], r[2], r[3]) : null
 }
 
@@ -128,32 +135,24 @@ async function initialize(document) {
 
 }
 
-main();
-
-chrome.runtime.onMessage.addListener(
-    (request, sender, sendResponse) => {
-        if (request.message === "reload"){
-            initialize(window.document);
-            chrome.runtime.sendMessage({message: []}, () => {
-                return true
-            });
+async function main(document) {
+    window.onload = () => {
+        initialize(window.document);
+        chrome.runtime.sendMessage({message: []}, () => {
+            return true
+        });
+    };
+    if (document) {
+        if (document.readyState === "complete") {
+            initialize(document);
         } else {
-            if (!inIframe()){
-                console.log("req", request.url)
-                var alink = document.createElement('a');
-                alink.download = "filename";
-                alink.href = request.url;
-                alink.target = "_blank";
-                alink.click();
-            }
+            document.onreadystatechange = () => {
+                if (document.readyState === "complete") {
+                    initialize(document);
+                }
+            };
         }
-        return true;
-    });
-
-function inIframe () {
-    try {
-        return window.self !== window.top;
-    } catch (e) {
-        return true;
     }
 }
+
+main();

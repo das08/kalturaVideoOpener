@@ -11,8 +11,6 @@ chrome.contextMenus.onClicked.addListener(item => {
     return true;
 });
 
-
-
 chrome.runtime.onMessage.addListener(
     (request, sender, sendResponse) => {
         const videoInfoList = request.message;
@@ -20,7 +18,7 @@ chrome.runtime.onMessage.addListener(
         chrome.contextMenus.removeAll();
         const parent = chrome.contextMenus.create({
             id: 'parent',
-            title: 'Download Kaltura Video',
+            title: 'Open Kaltura Video ',
             enabled: (videoInfoList.length > 0)
         });
 
@@ -33,7 +31,7 @@ chrome.runtime.onMessage.addListener(
             chrome.contextMenus.create({
                 id: "@URL"+video.url,
                 parentId: video.videoName,
-                title: 'Download'
+                title: 'Open'
             });
         }
 
