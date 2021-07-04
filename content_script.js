@@ -17,12 +17,9 @@ class VideoInfo {
     }
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.message === "reload"){
-        initialize(window.document);
-        chrome.runtime.sendMessage({message: []}, () => {
-            return true
-        });
+        await initialize(window.document);
     } else {
         if (!inIframe()){
             console.log("req", request.url)
@@ -36,40 +33,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
 });
 
-function fetchVideoMetaData(video) {
+async function fetchVideoMetaData(video) {
     // Make request only if video has required ids.
-    if (!video.partnerID || !video.partnerID2 || !video.entryID) return new Promise((resolve, _)=>{resolve(new VideoInfo())})
+    if (!video.partnerID || !video.partnerID2 || !video.entryID) return new VideoInfo();
     const queryURL = `https://cdnapi.kaltura.com/api_v3/index.php?apiVersion=3.1.5&format=1&service=multirequest&1%3Aexpiry=86400&1%3Aservice=session&1%3Aaction=startWidgetSession&1%3AwidgetId=_${video.partnerID}&2%3Aaction=get&2%3AentryId=${video.entryID}&2%3Aservice=baseentry&2%3Aks=%7B1%3Aresult%3Aks%7D&2%3AresponseProfile%3Afields=createdAt%2CdataUrl%2Cduration%2Cname%2Cplays%2CthumbnailUrl%2CuserId&2%3AresponseProfile%3Atype=1&3%3Aaction=getbyentryid&3%3AentryId=${video.entryID}&3%3Aservice=flavorAsset&3%3Aks=%7B1%3Aresult%3Aks%7D`
-    const request = new XMLHttpRequest();
-    request.open("GET", queryURL);
-    request.responseType = "json";
-
-    return new Promise((resolve, reject) => {
-        request.addEventListener("load", (e) => {
-            const res = request.response;
-            if (!res) {
-                resolve([new VideoInfo(null, null, null)]);
-            }
-            else {
-                let minBitRate = -1;
-                let flavorID = null;
-                for (let video of res[2]){
-                    if (video.bitrate > minBitRate){
-                        flavorID = video.id;
-                        minBitRate = video.bitrate;
-                    }
-                }
-                if (minBitRate !== -1){
-                    const url = `https://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
-                    resolve(new VideoInfo(res[1].name, res[1].duration, url));
-                } else {
-                    resolve(new VideoInfo(null, null, null));
-                }
-
-            }
-        });
-        request.send();
-    });
+    
+    const response = await fetch(queryURL);
+    const res = await response.json();
+    if (!res) {
+        return [new VideoInfo(null, null, null)];
+    }
+    let minBitRate = -1;
+    let flavorID = null;
+    for (let video of res[2]){
+        if (video.bitrate > minBitRate){
+            flavorID = video.id;
+            minBitRate = video.bitrate;
+        }
+    }
+    if (minBitRate !== -1){
+        const url = `https://cdnapi.kaltura.com/p/${video.partnerID}/sp/${video.partnerID2}/playManifest/entryId/${video.entryID}/format/url/protocol/http/flavorId/${flavorID}`;
+        return new VideoInfo(res[1].name, res[1].duration, url);
+    } else {
+        return new VideoInfo(null, null, null);
+    }
 }
 
 function inIframe () {
@@ -97,13 +84,13 @@ function getIDFromVideoTag(i){
 
 async function initialize(document) {
     let frameTags = document.getElementsByTagName("iframe");
-    Array.prototype.forEach.call(frameTags, function (frame) {
+    Array.prototype.forEach.call(frameTags, async function (frame) {
         try {
             var childDocument = frame.contentDocument;
         } catch (e) {
             return;
         }
-        main(childDocument);
+        await main(childDocument);
     });
     let imgTags = document.querySelectorAll('img');
     let videoTag = document.querySelector('video');
@@ -123,36 +110,35 @@ async function initialize(document) {
     }
 
     let videoInfoList = [];
-    const result = await (Promise).allSettled(pendingList);
-    for (const k of result) {
-        if (k.status === "fulfilled") videoInfoList.push(k.value);
+    for (const pending of pendingList) {
+        try {
+            const result = await pending;
+            if (result !== null) {
+                videoInfoList.push(result);
+            }
+        } catch (err) {
+            console.log(err);
+        }
     }
 
     console.log(videoInfoList)
-    chrome.runtime.sendMessage({message: videoInfoList}, () => {
-        return true
-    });
-
+    await chrome.runtime.sendMessage({message: videoInfoList});
 }
 
 async function main(document) {
-    window.onload = () => {
-        initialize(window.document);
-        chrome.runtime.sendMessage({message: []}, () => {
-            return true
-        });
-    };
     if (document) {
         if (document.readyState === "complete") {
-            initialize(document);
+            await initialize(document);
         } else {
-            document.onreadystatechange = () => {
+            document.onreadystatechange = async () => {
                 if (document.readyState === "complete") {
-                    initialize(document);
+                    await initialize(document);
                 }
             };
         }
     }
 }
 
-main();
+window.onload = async () => {
+    await initialize(window.document);
+};

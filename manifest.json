@@ -33,7 +33,8 @@
   ],
   "permissions": [
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "*://*/*"
   ],
   "web_accessible_resources": [
   ]
